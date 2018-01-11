@@ -55,7 +55,7 @@ faktory
 And then we open up a file in our project called `do_thing.cr`:
 
 ```crystal
-require "faktory"
+require "faktory_worker"
 
 struct DoThing < Faktory::Job
   arg thing     : String
