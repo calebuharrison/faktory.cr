@@ -1,6 +1,6 @@
 # faktory.cr
 
-faktory.cr is a Faktory client for Crystal. It is heavily influenced by both the
+faktory.cr is a [Faktory](https://github.com/contribsys/faktory) client for Crystal. It is heavily influenced by both the
 [Ruby Faktory client](https://github.com/contribsys/faktory_worker_ruby) and [sidekiq.cr](https://github.com/mperham/sidekiq.cr).
 Shout out to [@mperham](https://github.com/mperham) for these fantastic projects!
 
@@ -10,12 +10,12 @@ Heads up - this is still a work in progress. Basic functionality is working well
 - [x] Serializing and enqueuing jobs on the Faktory server
 - [x] Fetching and executing jobs via workers
 - [x] Powerful configuration options
+- [x] Logging
 
  but there are still some things missing:
 
-- [ ] TLS and Password Support
+- [ ] TLS Support
 - [ ] Middleware/Plugin Infrastructure
-- [ ] Logging 
 - [ ] Tests
 
 ## Installation
@@ -231,6 +231,16 @@ You can also get some operational info from the server as a String:
 ```crystal
 puts Faktory.info
 ```
+
+## Production
+
+If you're a little off your rocker, you can use Faktory in production.  You'll need to include the password in the Faktory URL:
+
+```sh
+export FAKTORY_URL="tcp://:opensesame@localhost:7419"
+```
+
+Please do not use "opensesame" as your password.
 
 ## Contributing
 

@@ -2,6 +2,7 @@ require "uri"
 require "socket"
 require "random"
 require "json"
+require "openssl"
 
 module Faktory
   abstract class Client
@@ -10,26 +11,55 @@ module Faktory
     @labels   : Array(String)
     @socket   : TCPSocket
 
-    def initialize(debug : Bool = false)
-      @debug = debug
-      @location = uri_from_env
+    def initialize
+      Faktory.log.debug("Initializing client connection...")
+      @location = URI.parse(Faktory.url)
       @labels = ["crystal-#{Crystal::VERSION}"]
       @socket = TCPSocket.new(@location.host.as(String), @location.port.as(Int32))
-      perform_initial_handshake      
+      perform_initial_handshake
+      Faktory.log.debug("Client successfully connected to Faktory server at #{@location}")
     end
 
-    # def hash_it_up(n : Int32, password : String, salt : String) : String
-    #   sha = OpenSSL::Digest.new("SHA256")
-    #   hashing = password + salt
-    #   n.times do 
-    #     hashing = sha.update(hashing.as(String))
-    #   end
-    #   sha.hexdigest
-    # end
+    # Thanks, RX14!
+    #
+    # https://stackoverflow.com/questions/42299037/
+    private def hex_decode(hex : String) : Slice(UInt8)
+      if hex.size.even?
+        slice = Slice(UInt8).new(hex.size / 2)
+        0.step(to: hex.size - 1, by: 2) do |i|
+          high_nibble = hex.to_unsafe[i].unsafe_chr.to_u8?(16)
+          low_nibble = hex.to_unsafe[i + 1].unsafe_chr.to_u8?(16)
+          if high_nibble && low_nibble
+            slice[i / 2] = (high_nibble << 4) | low_nibble
+          else
+            raise "InvalidHex"
+          end
+        end
+        slice
+      else
+        raise "InvalidHex"
+      end
+    end
+
+    def hash_it_up(n : Int32, password : String, salt : String) : String
+      hash = OpenSSL::Digest.new("SHA256").update(password + salt)
+      data = hex_decode(hash.hexdigest)
+      (n - 1).times do |i|
+        hash.reset
+        hash.update(data)
+        if i == (n - 2)
+          data = hash.hexdigest
+        else
+          data = hash.digest
+        end
+      end
+      data.as(String)
+    end
 
     def close
       send_command("END")
       @socket.close
+      Faktory.log.debug("Client connection closed")
     end
 
     def flush
@@ -37,6 +67,7 @@ module Faktory
         send_command("FLUSH")
         verify_ok
       end
+      Faktory.log.info("Flushed Faktory server dataset")
     end
 
     private def handshake_payload
@@ -53,6 +84,7 @@ module Faktory
     end
 
     private def renew_socket
+      Faktory.log.debug("Renewing socket...")
       @socket = TCPSocket.new(@location.host.as(String), @location.port.as(Int32))
     end
 
@@ -64,39 +96,50 @@ module Faktory
           served_hash = JSON.parse($1)
           ver = served_hash["v"].as_i
           if ver > 2
-            puts "Warning: Faktory server protocol #{ver} in use, this worker doesn't speak that version."
-            puts "We recommed you upgrade this shard with `shards update faktory_worker_crystal`."
+            warning = <<-WARNING
+            Faktory server protocol #{ver} in use, but this client doesn't speak that version. Your results will be undefined.
+            Upgrade this shard with `shards update faktory_worker` to see if an updated version is available.
+            If you still see this message, open an issue on GitHub.
+            WARNING
+            Faktory.log.warn(warning)
           end
 
-          # salt = served_hash["s"]?.try &.as_s?
-          # if salt
-          #   raise "server requires password, but none has been configured" unless @location.password
-          #   i = served_hash["i"].as_i || 1
-          #   raise "invalid hashing" if i < 1
-          #   password_hash = hash_it_up(i, @location.password.as(String), salt)
-          # end
+          salt = served_hash["s"]?.try &.as_s?
+          if salt
+            if @location.password
+              i = served_hash["i"].as_i || 1
+              unless i < 1
+                password_hash = hash_it_up(i, @location.password.as(String), salt)
+              else
+                Faktory.log.fatal("Server requires negative hashing iterations, needs to see a doctor")
+                raise "InvalidHashing"
+              end
+            else
+              Faktory.log.fatal("Server requires password, but none has been configured")
+              raise "MissingPassword"
+            end
+          end
         end
         handshake_payload_string = handshake_payload.merge({:pwdhash => password_hash}).to_json
         send_command("HELLO", handshake_payload_string)
         verify_ok
       else
-        raise "did not get server response"
+        Faktory.log.fatal("Server did not say HI")
+        raise "NoServerResponse"
       end
     end
 
     def info : String
-      info_string = ""
       retry_if_necessary do
         send_command("INFO")
         response = get_server_response
         if response
-          puts response.as(String) if @debug
-          info_string = response.as(String)
+          return response.as(String)
         else
-          info_string = "No response"
+          Faktory.fatal("Server did not return info upon request")
+          raise "NoServerResponse"
         end
       end
-      info_string
     end
 
     private def retry_if_necessary(limit : Int32 = 3, &block)
@@ -108,11 +151,13 @@ module Faktory
           yield
           success = true
         rescue e
+          Faktory.log.error("Client retry attempt #{attempt} triggered")
           if attempt < limit
             renew_socket
             perform_initial_handshake
           else
-            raise "retry limit reached: #{e}"
+            Faktory.log.fatal("Client retry limit reached")
+            raise "RetryLimitReached"
           end
         end
       end
@@ -121,54 +166,44 @@ module Faktory
     private def send_command(*args : String)
       command = args.join(" ")
       @socket.puts(command)
-      puts "> #{command}" if @debug
+      Faktory.log.debug("> " + command)
     end
 
     private def verify_ok
       response = get_server_response
-      raise "not okay" unless response
-      raise "not okay" unless response.as(String) == "OK"
+      unless response && response.as(String) == "OK"
+        Faktory.log.fatal("Server did not verify OK")
+        raise "NotOK"
+      end
     end
 
     private def get_server_response : String | Nil
       line = @socket.gets
-      puts "< #{line}" if @debug
-      raise "no server response" unless line
-      case line.char_at(0)
-      when '+'
-        return line[1..-1].strip
-      when '$'
-        count = line[1..-1].strip.to_i
-        if count > -1
-          slice = Slice(UInt8).new(count)
-          @socket.read(slice)
-          @socket.gets
-          return String.new(slice)
-        else
-          return nil
-        end
-      when '-'
-        raise "command error"
-      else
-        raise "parse error"
-      end
-    end
-
-    private def uri_from_env : URI
-      provider = ENV["FAKTORY_PROVIDER"]?
-      if provider
-        if provider.as(String).includes?(":")
-          raise "FAKTORY_PROVIDER cannot include ':'"
-        else
-          url = ENV[provider.as(String)]?
-          if url
-            return URI.parse(url.as(String))
+      if line
+        Faktory.log.debug("< " + line)
+        case line.char_at(0)
+        when '+'
+          return line[1..-1].strip
+        when '$'
+          count = line[1..-1].strip.to_i
+          if count > -1
+            slice = Slice(UInt8).new(count)
+            @socket.read(slice)
+            @socket.gets
+            return String.new(slice)
           else
-            raise "Could not get a URL from #{provider.as(String)}"
+            return nil
           end
+        when '-'
+          Faktory.log.fatal("Server response indicates a command error")
+          raise "CommandError"
+        else
+          Faktory.log.fatal("Unable to parse server response")
+          raise "ParseError"
         end
       else
-        raise "Missing FAKTORY_PROVIDER environment variable"
+        Faktory.log.fatal("Server did not respond")
+        raise "NoServerResponse"
       end
     end
   end

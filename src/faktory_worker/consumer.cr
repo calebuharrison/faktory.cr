@@ -7,15 +7,16 @@ module Faktory
       super.merge({:wid => @wid})
     end
 
-    def initialize(debug : Bool = false)
+    def initialize
       @wid = Random.new.hex(8)
-      super(debug)
+      super
     end
 
     def beat : String | Nil
       beat_payload = {
         wid: @wid
       }.to_json
+      Faktory.log.info("BEAT " + beat_payload)
 
       response = nil
       retry_if_necessary do
@@ -43,6 +44,7 @@ module Faktory
     end
 
     def ack(jid : String)
+      Faktory.log.info("SUCCESS " + jid)
       ack_payload = {
         jid: jid
       }.to_json
@@ -60,6 +62,7 @@ module Faktory
         jid:        jid,
         backtrace:  exception.backtrace
       }.to_json
+      Faktory.log.warn("FAIL " + fail_payload)
 
       retry_if_necessary do
         send_command("FAIL", fail_payload)

@@ -38,7 +38,7 @@ module Faktory
     @running          : Bool
 
     def initialize(debug : Bool = false)
-      @consumer         = Consumer.new(debug: debug)
+      @consumer         = Consumer.new
       @shuffle          = true
       @queues           = ["default"]
       @quiet            = false
@@ -131,11 +131,12 @@ module Faktory
     end
 
     private def process(job : Job)
+      Faktory.log.info("START " + job.jid)
       begin
         job.perform
         @consumer.ack(job.jid)
-      rescue ex
-        @consumer.fail(job.jid, ex)
+      rescue e
+        @consumer.fail(job.jid, e)
       end
     end
 

@@ -89,8 +89,12 @@ module Faktory
 
     # Registers a Job argument
     macro arg(type_decl)
-      {% ARGS[type_decl.var.id] = type_decl.type.id %}
+      {% ARGS << type_decl %}
       @{{type_decl.var.id}} : {{type_decl.type.id}}
+
+      private def {{type_decl.var.id}} : {{type_decl.type.id}}
+        @{{type_decl.var.id}}
+      end
     end
 
     # Sets the default queue for this job type.
@@ -191,7 +195,7 @@ module Faktory
       REGISTRY[JOBTYPE] = -> (payload : JSON::Any) { {{@type}}.deserialize(payload).as(Faktory::Job) }
 
       # Job arguments which are populated at compile-time.
-      ARGS = {} of Nil => Nil
+      ARGS = [] of Nil
 
       # Default options for this job type, populated by their individual macros.
       JOBTYPE_DEFAULTS = {} of Symbol => Int32 | String
@@ -199,7 +203,7 @@ module Faktory
       macro finished
 
         # Create a Tuple type definition from the list of arguments.
-        ARGS_TYPE_TUPLE = Tuple(\{% for v, t in ARGS %} \{{t}}, \{% end %})
+        ARGS_TYPE_TUPLE = Tuple(\{% for t in ARGS %} \{{t.type.id}}, \{% end %})
 
         # Merge Faktory defaults into this job's defaults.
         \{% for k, v in GLOBAL_JOB_DEFAULTS %}
@@ -209,38 +213,32 @@ module Faktory
         \{% end %}
 
         # Push this job to the Faktory server with call site configuration.
-        def self.perform_async(\{% for v, t in ARGS %} \{{v}} : \{{t}}, \{% end %} &block : OptionDeck -> OptionDeck) : String
+        def self.perform_async(\{% for t in ARGS %} \{{t.var.id}} : \{{t.type.id}}, \{% end %} &block : OptionDeck -> OptionDeck) : String
           option_deck = yield OptionDeck.new(JOBTYPE_DEFAULTS)
-          job = \{{@type}}.new(\{% for v, t in ARGS %} \{{v}}: \{{v}}, \{% end %})
+          job = \{{@type}}.new(\{% for t in ARGS %} \{{t.var.id}}: \{{t.var.id}}, \{% end %})
           Faktory.producer.push(job.serialize(option_deck))
           job.jid
         end
 
         # Push this job to the Faktory server.
-        def self.perform_async(\{% for v, t in ARGS %} \{{v}} : \{{t}}, \{% end %}) : String
+        def self.perform_async(\{% for t in ARGS %} \{{t.var.id}} : \{{t.type.id}}, \{% end %}) : String
           option_deck = OptionDeck.new(JOBTYPE_DEFAULTS)
-          job = \{{@type}}.new(\{% for v, t in ARGS %} \{{v}}: \{{v}}, \{% end %})
+          job = \{{@type}}.new(\{% for t in ARGS %} \{{t.var.id}}: \{{t.var.id}}, \{% end %})
           Faktory.producer.push(job.serialize(option_deck))
           job.jid
         end
 
-        protected def initialize(\{% for v, t in ARGS %} \{{v}} : \{{t}}, \{% end %} jid : String = Random.new.hex(12), created_at : Time | Nil = nil, enqueued_at : Time | Nil = nil)
+        protected def initialize(\{% for t in ARGS %} \{{t.var.id}} : \{{t.type.id}}, \{% end %} jid : String = Random.new.hex(12), created_at : Time | Nil = nil, enqueued_at : Time | Nil = nil)
           super(jid)
-          \{% for v, t in ARGS %}
-            @\{{v}} = \{{v}}
+          \{% for t in ARGS %}
+            @\{{t.var.id}} = \{{t.var.id}}
           \{% end %}
           @created_at = created_at
           @enqueued_at = enqueued_at
         end
 
-        \{% for v, t in ARGS %}
-          private def \{{v}} : \{{t}}
-            @\{{v}}
-          end
-        \{% end %}
-
         private def args
-          [\{% for v, t in ARGS %} @\{{v}}, \{% end %}]
+          { \{% for t in ARGS %} @\{{t.var.id}}, \{% end %} }
         end
 
         # Serializes the job into JSON.
