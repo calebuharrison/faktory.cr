@@ -136,7 +136,7 @@ module Faktory
         if response
           return response.as(String)
         else
-          Faktory.fatal("Server did not return info upon request")
+          Faktory.log.fatal("Server did not return info upon request")
           raise "NoServerResponse"
         end
       end
