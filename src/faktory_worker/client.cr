@@ -130,16 +130,18 @@ module Faktory
     end
 
     def info : String
+      info_string = "{}"
       retry_if_necessary do
         send_command("INFO")
-        response = get_server_response
-        if response
-          return response.as(String)
+        if response = get_server_response
+          info_string = response
         else
-          Faktory.fatal("Server did not return info upon request")
+          Faktory.log.fatal("Server did not return info upon request")
           raise "NoServerResponse"
         end
       end
+
+      info_string
     end
 
     private def retry_if_necessary(limit : Int32 = 3, &block)
