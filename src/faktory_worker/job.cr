@@ -11,7 +11,7 @@ module Faktory
       :retry => 25,
       :backtrace => 0
     }
-  
+
     macro configure_defaults(default_hash)
       {% for k, v in default_hash %}
         {% if k.is_a?(SymbolLiteral) %}
@@ -37,7 +37,7 @@ module Faktory
             {% if v.is_a?(NumberLiteral) && v >= 60 %}
               {% GLOBAL_JOB_DEFAULTS[:reserve_for] = v %}
             {% else %}
-              {% raise "reserve_for must be a positive integer no less than 60, expressed in seconds" %} 
+              {% raise "reserve_for must be a positive integer no less than 60, expressed in seconds" %}
             {% end %}
           {% elsif k == :retry %}
             {% if v.is_a?(NumberLiteral) && v > -2 %}
