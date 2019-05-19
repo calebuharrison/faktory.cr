@@ -1,3 +1,5 @@
+require "random"
+
 module Faktory
   class Consumer < Client
 

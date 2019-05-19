@@ -1,6 +1,5 @@
 require "uri"
 require "socket"
-require "random"
 require "json"
 require "openssl"
 
