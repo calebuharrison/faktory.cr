@@ -1,3 +1,5 @@
+require "random/secure"
+
 module Faktory
 
   abstract struct Job
@@ -83,7 +85,7 @@ module Faktory
       REGISTRY[jobtype].call(payload)
     end
 
-    def initialize(jid : String = SecureRandom.hex(12))
+    def initialize(jid : String = Random::Secure.hex(12))
       @jid = jid
     end
 
