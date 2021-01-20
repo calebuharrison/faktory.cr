@@ -1,3 +1,5 @@
+require "random/secure"
+
 module Faktory
 
   abstract struct Job
@@ -9,7 +11,7 @@ module Faktory
       :retry => 25,
       :backtrace => 0
     }
-  
+
     macro configure_defaults(default_hash)
       {% for k, v in default_hash %}
         {% if k.is_a?(SymbolLiteral) %}
@@ -35,7 +37,7 @@ module Faktory
             {% if v.is_a?(NumberLiteral) && v >= 60 %}
               {% GLOBAL_JOB_DEFAULTS[:reserve_for] = v %}
             {% else %}
-              {% raise "reserve_for must be a positive integer no less than 60, expressed in seconds" %} 
+              {% raise "reserve_for must be a positive integer no less than 60, expressed in seconds" %}
             {% end %}
           {% elsif k == :retry %}
             {% if v.is_a?(NumberLiteral) && v > -2 %}
@@ -83,7 +85,7 @@ module Faktory
       REGISTRY[jobtype].call(payload)
     end
 
-    def initialize(jid : String = SecureRandom.hex(12))
+    def initialize(jid : String = Random::Secure.hex(12))
       @jid = jid
     end
 
@@ -228,7 +230,7 @@ module Faktory
           job.jid
         end
 
-        protected def initialize(\{% for t in ARGS %} \{{t.var.id}} : \{{t.type.id}}, \{% end %} jid : String = Random.new.hex(12), created_at : Time | Nil = nil, enqueued_at : Time | Nil = nil)
+        protected def initialize(\{% for t in ARGS %} \{{t.var.id}} : \{{t.type.id}}, \{% end %} jid : String = Random::Secure.new.hex(12), created_at : Time | Nil = nil, enqueued_at : Time | Nil = nil)
           super(jid)
           \{% for t in ARGS %}
             @\{{t.var.id}} = \{{t.var.id}}

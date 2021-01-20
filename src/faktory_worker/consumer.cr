@@ -1,3 +1,5 @@
+require "random/secure"
+
 module Faktory
   class Consumer < Client
 
@@ -8,7 +10,7 @@ module Faktory
     end
 
     def initialize
-      @wid = Random.new.hex(8)
+      @wid = Random::Secure.new.hex(8)
       super
     end
 
