@@ -1,15 +1,13 @@
 require "random/secure"
 
 module Faktory
-
   abstract struct Job
-
     GLOBAL_JOB_DEFAULTS = {
-      :queue => "default",
-      :priority => 5,
+      :queue       => "default",
+      :priority    => 5,
       :reserve_for => 1800,
-      :retry => 25,
-      :backtrace => 0
+      :retry       => 25,
+      :backtrace   => 0,
     }
 
     macro configure_defaults(default_hash)
@@ -60,9 +58,9 @@ module Faktory
     TIME_FORMAT_STRING = "%FT%T%:z"
 
     # job ID
-    @jid          : String
-    @created_at   : Time | Nil
-    @enqueued_at  : Time | Nil
+    @jid : String
+    @created_at : Time | Nil
+    @enqueued_at : Time | Nil
 
     protected def jid : String
       @jid
@@ -145,7 +143,6 @@ module Faktory
     end
 
     private class OptionDeck
-
       @options : Hash(Symbol, Int32 | String)
 
       def initialize(option_hash : Hash(Symbol, Int32 | String))
@@ -187,7 +184,6 @@ module Faktory
       protected def expose : Hash(Symbol, Int32 | String)
         @options
       end
-
     end
 
     macro inherited
@@ -261,7 +257,5 @@ module Faktory
       end
 
     end
-
   end
-
 end

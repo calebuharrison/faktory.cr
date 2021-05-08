@@ -5,10 +5,9 @@ require "openssl"
 
 module Faktory
   abstract class Client
-
     @location : URI
-    @labels   : Array(String)
-    @socket   : TCPSocket
+    @labels : Array(String)
+    @socket : TCPSocket
 
     def initialize
       Faktory.log.debug("Initializing client connection...")
@@ -72,9 +71,9 @@ module Faktory
     private def handshake_payload
       {
         :hostname => @location.host.as(String),
-        :pid => Process.pid,
-        :labels => @labels,
-        :v => 2
+        :pid      => Process.pid,
+        :labels   => @labels,
+        :v        => 2,
       }
     end
 

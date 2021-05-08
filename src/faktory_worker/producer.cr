@@ -1,6 +1,5 @@
 module Faktory
   class Producer < Client
-
     def initialize
       super
     end
@@ -12,6 +11,5 @@ module Faktory
         verify_ok
       end
     end
-
   end
 end
