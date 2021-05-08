@@ -1,9 +1,9 @@
 name: faktory_worker
-version: 0.1.0
+version: 0.2.0
 
 authors:
   - Caleb Uriah Harrison <calebuharrison@gmail.com>
 
-crystal: 0.24.0
+crystal: 0.35.1
 
 license: MIT

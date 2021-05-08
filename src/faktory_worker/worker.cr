@@ -1,5 +1,6 @@
 module Faktory
   class Worker
+    Log = Faktory.Log.for(self)
 
     private class OptionDeck
       @options : Hash(Symbol, Bool | Array(String))
@@ -7,7 +8,7 @@ module Faktory
       def initialize
         @options = {
           :shuffle => true,
-          :queues  => ["default"]
+          :queues  => ["default"],
         }
       end
 
@@ -26,25 +27,24 @@ module Faktory
       protected def expose : Hash(Symbol, Bool | Array(String))
         @options
       end
-
     end
 
-    @consumer         : Consumer
-    @shuffle          : Bool
-    @queues           : Array(String)
-    @quiet            : Bool
-    @terminate        : Bool
+    @consumer : Consumer
+    @shuffle : Bool
+    @queues : Array(String)
+    @quiet : Bool
+    @terminate : Bool
     @should_heartbeat : Bool
-    @running          : Bool
+    @running : Bool
 
     def initialize(debug : Bool = false)
-      @consumer         = Consumer.new
-      @shuffle          = true
-      @queues           = ["default"]
-      @quiet            = false
-      @terminate        = false
+      @consumer = Consumer.new
+      @shuffle = true
+      @queues = ["default"]
+      @quiet = false
+      @terminate = false
       @should_heartbeat = true
-      @running          = false
+      @running = false
     end
 
     def running? : Bool
@@ -52,8 +52,8 @@ module Faktory
     end
 
     def shutdown!
-      @quiet      = true
-      @terminate  = true
+      @quiet = true
+      @terminate = true
     end
 
     def run
@@ -83,7 +83,6 @@ module Faktory
       @queues = options[:queues].as(Array(String))
       self.run
     end
-      
 
     private def start_heartbeat
       spawn do
@@ -131,7 +130,7 @@ module Faktory
     end
 
     private def process(job : Job)
-      Faktory.log.info("START " + job.jid)
+      Log.info("START " + job.jid)
       begin
         job.perform
         @consumer.ack(job.jid)
@@ -139,6 +138,5 @@ module Faktory
         @consumer.fail(job.jid, e)
       end
     end
-
   end
 end

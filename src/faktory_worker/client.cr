@@ -5,18 +5,19 @@ require "openssl"
 
 module Faktory
   abstract class Client
+    Log = Faktory.Log.for(self)
 
     @location : URI
-    @labels   : Array(String)
-    @socket   : TCPSocket
+    @labels : Array(String)
+    @socket : TCPSocket
 
     def initialize
-      Faktory.log.debug("Initializing client connection...")
+      Log.debug("Initializing client connection...")
       @location = URI.parse(Faktory.url)
       @labels = ["crystal-#{Crystal::VERSION}"]
       @socket = TCPSocket.new(@location.host.as(String), @location.port.as(Int32))
       perform_initial_handshake
-      Faktory.log.debug("Client successfully connected to Faktory server at #{@location}")
+      Log.debug("Client successfully connected to Faktory server at #{@location}")
     end
 
     # Thanks, RX14!
@@ -58,7 +59,7 @@ module Faktory
     def close
       send_command("END")
       @socket.close
-      Faktory.log.debug("Client connection closed")
+      Log.debug("Client connection closed")
     end
 
     def flush
@@ -66,15 +67,15 @@ module Faktory
         send_command("FLUSH")
         verify_ok
       end
-      Faktory.log.info("Flushed Faktory server dataset")
+      Log.info("Flushed Faktory server dataset")
     end
 
     private def handshake_payload
       {
         :hostname => @location.host.as(String),
-        :pid => Process.pid,
-        :labels => @labels,
-        :v => 2
+        :pid      => Process.pid,
+        :labels   => @labels,
+        :v        => 2,
       }
     end
 
@@ -83,7 +84,7 @@ module Faktory
     end
 
     private def renew_socket
-      Faktory.log.debug("Renewing socket...")
+      Log.debug("Renewing socket...")
       @socket = TCPSocket.new(@location.host.as(String), @location.port.as(Int32))
     end
 
@@ -100,7 +101,7 @@ module Faktory
             Upgrade this shard with `shards update faktory_worker` to see if an updated version is available.
             If you still see this message, open an issue on GitHub.
             WARNING
-            Faktory.log.warn(warning)
+            Log.warn(warning)
           end
 
           salt = served_hash["s"]?.try &.as_s?
@@ -110,11 +111,11 @@ module Faktory
               unless i < 1
                 password_hash = hash_it_up(i, @location.password.as(String), salt)
               else
-                Faktory.log.fatal("Server requires negative hashing iterations, needs to see a doctor")
+                Log.fatal("Server requires negative hashing iterations, needs to see a doctor")
                 raise "InvalidHashing"
               end
             else
-              Faktory.log.fatal("Server requires password, but none has been configured")
+              Log.fatal("Server requires password, but none has been configured")
               raise "MissingPassword"
             end
           end
@@ -123,7 +124,7 @@ module Faktory
         send_command("HELLO", handshake_payload_string)
         verify_ok
       else
-        Faktory.log.fatal("Server did not say HI")
+        Log.fatal("Server did not say HI")
         raise "NoServerResponse"
       end
     end
@@ -135,7 +136,7 @@ module Faktory
         if response = get_server_response
           info_string = response
         else
-          Faktory.log.fatal("Server did not return info upon request")
+          Log.fatal("Server did not return info upon request")
           raise "NoServerResponse"
         end
       end
@@ -152,12 +153,12 @@ module Faktory
           yield
           success = true
         rescue e
-          Faktory.log.error("Client retry attempt #{attempt} triggered")
+          Log.error("Client retry attempt #{attempt} triggered")
           if attempt < limit
             renew_socket
             perform_initial_handshake
           else
-            Faktory.log.fatal("Client retry limit reached")
+            Log.fatal("Client retry limit reached")
             raise "RetryLimitReached"
           end
         end
@@ -167,13 +168,13 @@ module Faktory
     private def send_command(*args : String)
       command = args.join(" ")
       @socket.puts(command)
-      Faktory.log.debug("> " + command)
+      Log.debug("> " + command)
     end
 
     private def verify_ok
       response = get_server_response
       unless response && response.as(String) == "OK"
-        Faktory.log.fatal("Server did not verify OK")
+        Log.fatal("Server did not verify OK")
         raise "NotOK"
       end
     end
@@ -181,7 +182,7 @@ module Faktory
     private def get_server_response : String | Nil
       line = @socket.gets
       if line
-        Faktory.log.debug("< " + line)
+        Log.debug("< " + line)
         case line.char_at(0)
         when '+'
           return line[1..-1].strip
@@ -196,14 +197,14 @@ module Faktory
             return nil
           end
         when '-'
-          Faktory.log.fatal("Server response indicates a command error")
+          Log.fatal("Server response indicates a command error")
           raise "CommandError"
         else
-          Faktory.log.fatal("Unable to parse server response")
+          Log.fatal("Unable to parse server response")
           raise "ParseError"
         end
       else
-        Faktory.log.fatal("Server did not respond")
+        Log.fatal("Server did not respond")
         raise "NoServerResponse"
       end
     end

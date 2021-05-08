@@ -1,24 +1,8 @@
 require "./faktory_worker/**"
-require "logger"
+require "log"
+
 module Faktory
-
-  @@log : Logger | Nil
-
-  protected def self.create_logger : Logger
-    logger = Logger.new(STDOUT)
-    logger.level = Logger::INFO
-    logger.progname = "faktory.cr"
-    logger.formatter = Logger::Formatter.new do |severity, datetime, progname, message, io|
-      label = severity.unknown? ? "ANY" : severity.to_s
-      io << label[0] << ", [" << datetime.to_utc << " #" << Process.pid << "] "
-      io << label.rjust(5) << " -- " << progname << ": " << message
-    end
-    return logger
-  end
-
-  protected def self.log : Logger
-    @@log ||= self.create_logger
-  end
+  Log = ::Log.for(self)
 
   @@producer : Producer | Nil
 
@@ -33,7 +17,7 @@ module Faktory
       @@provider ||= ENV["FAKTORY_PROVIDER"]
       return @@provider.as(String)
     rescue
-      Faktory.log.fatal("Missing FAKTORY_PROVIDER environment variable")
+      Log.fatal("Missing FAKTORY_PROVIDER environment variable")
       raise "MissingProviderError"
     end
   end
@@ -45,7 +29,7 @@ module Faktory
       @@url ||= ENV[Faktory.provider]
       return @@url.as(String)
     rescue
-      Faktory.log.fatal("Unable to extract Faktory server URL from environment variable" + Faktory.provider)
+      Log.fatal("Unable to extract Faktory server URL from ENV variable #{Faktory.provider}")
       raise "MissingURLError"
     end
   end

@@ -2,7 +2,6 @@ require "random/secure"
 
 module Faktory
   class Consumer < Client
-
     @wid : String
 
     private def handshake_payload
@@ -16,9 +15,9 @@ module Faktory
 
     def beat : String | Nil
       beat_payload = {
-        wid: @wid
+        wid: @wid,
       }.to_json
-      Faktory.log.info("BEAT " + beat_payload)
+      Log.info("BEAT " + beat_payload)
 
       response = nil
       retry_if_necessary do
@@ -46,9 +45,9 @@ module Faktory
     end
 
     def ack(jid : String)
-      Faktory.log.info("SUCCESS " + jid)
+      Log.info("SUCCESS " + jid)
       ack_payload = {
-        jid: jid
+        jid: jid,
       }.to_json
 
       retry_if_necessary do
@@ -59,12 +58,12 @@ module Faktory
 
     def fail(jid : String, exception : Exception)
       fail_payload = {
-        message:    exception.message,
-        errtype:    exception.inspect,
-        jid:        jid,
-        backtrace:  exception.backtrace
+        message:   exception.message,
+        errtype:   exception.inspect,
+        jid:       jid,
+        backtrace: exception.backtrace,
       }.to_json
-      Faktory.log.warn("FAIL " + fail_payload)
+      Log.warn("FAIL " + fail_payload)
 
       retry_if_necessary do
         send_command("FAIL", fail_payload)
