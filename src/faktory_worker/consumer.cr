@@ -17,7 +17,7 @@ module Faktory
       beat_payload = {
         wid: @wid,
       }.to_json
-      Faktory.log.info("BEAT " + beat_payload)
+      Log.info("BEAT " + beat_payload)
 
       response = nil
       retry_if_necessary do
@@ -45,7 +45,7 @@ module Faktory
     end
 
     def ack(jid : String)
-      Faktory.log.info("SUCCESS " + jid)
+      Log.info("SUCCESS " + jid)
       ack_payload = {
         jid: jid,
       }.to_json
@@ -63,7 +63,7 @@ module Faktory
         jid:       jid,
         backtrace: exception.backtrace,
       }.to_json
-      Faktory.log.warn("FAIL " + fail_payload)
+      Log.warn("FAIL " + fail_payload)
 
       retry_if_necessary do
         send_command("FAIL", fail_payload)

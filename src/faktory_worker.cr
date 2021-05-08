@@ -17,7 +17,7 @@ module Faktory
       @@provider ||= ENV["FAKTORY_PROVIDER"]
       return @@provider.as(String)
     rescue
-      Faktory.log.fatal("Missing FAKTORY_PROVIDER environment variable")
+      Log.fatal("Missing FAKTORY_PROVIDER environment variable")
       raise "MissingProviderError"
     end
   end

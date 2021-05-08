@@ -1,5 +1,7 @@
 module Faktory
   class Worker
+    Log = Faktory.Log.for(self)
+
     private class OptionDeck
       @options : Hash(Symbol, Bool | Array(String))
 
@@ -128,7 +130,7 @@ module Faktory
     end
 
     private def process(job : Job)
-      Faktory.log.info("START " + job.jid)
+      Log.info("START " + job.jid)
       begin
         job.perform
         @consumer.ack(job.jid)
